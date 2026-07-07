@@ -77,6 +77,7 @@ export default function SubscriptionsScreen({ route }) {
         showTitle: subscription.showTitle,
         episodeTitle: episode.title,
         description: episode.description,
+        audioUrl: episode.audioUrl,
       },
     });
   };

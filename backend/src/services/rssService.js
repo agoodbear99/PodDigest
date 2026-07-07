@@ -4,16 +4,34 @@ const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
   textNodeName: '#text',
+  // Some podcast feeds nest markup deeply (e.g. rich HTML in show notes) and blow
+  // past fast-xml-parser's default cap of 100, throwing "Maximum nested tags exceeded".
+  maxNestedTags: 10000,
 });
 
 const MAX_EPISODES = 20;
 
+function hostnameOf(url) {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    try {
+      // Be lenient about URLs pasted without a scheme (e.g. "podcasts.apple.com/...").
+      return new URL(`https://${url}`).hostname.toLowerCase();
+    } catch {
+      return '';
+    }
+  }
+}
+
 function isSpotifyUrl(url) {
-  return /(^|\.)open\.spotify\.com/i.test(url) || /(^|\.)spotify\.com/i.test(url);
+  const hostname = hostnameOf(url);
+  return hostname === 'spotify.com' || hostname.endsWith('.spotify.com');
 }
 
 function isApplePodcastsUrl(url) {
-  return /(^|\.)podcasts\.apple\.com/i.test(url);
+  const hostname = hostnameOf(url);
+  return hostname === 'podcasts.apple.com' || hostname.endsWith('.podcasts.apple.com');
 }
 
 function extractAppleId(url) {
@@ -32,7 +50,9 @@ async function resolveAppleRssUrl(appleUrl) {
     throw err;
   }
 
-  const lookupUrl = `https://itunes.apple.com/lookup?id=${appleId}&entity=podcast`;
+  // `country=US` pins the lookup to the US catalog so results are consistent
+  // regardless of the server's own IP-based locale.
+  const lookupUrl = `https://itunes.apple.com/lookup?id=${appleId}&entity=podcast&country=US`;
   const res = await fetch(lookupUrl);
   if (!res.ok) {
     const err = new Error(`Apple lookup failed with status ${res.status}.`);
@@ -86,6 +106,10 @@ async function fetchFeed(rssUrl) {
   if (!res.ok) {
     const err = new Error(`Failed to fetch RSS feed (status ${res.status}).`);
     err.status = 502;
+    // The real upstream status (404, 403, ...), as opposed to the 502 we return to
+    // our own API client — callers use this to tell "feed is gone" apart from
+    // other fetch failures and craft a more specific message.
+    err.upstreamStatus = res.status;
     throw err;
   }
 
@@ -146,8 +170,27 @@ async function resolvePodcastUrl(inputUrl) {
     throw err;
   }
 
-  const rssUrl = isApplePodcastsUrl(url) ? await resolveAppleRssUrl(url) : url;
-  return fetchFeed(rssUrl);
+  if (!isApplePodcastsUrl(url)) {
+    return fetchFeed(url);
+  }
+
+  const rssUrl = await resolveAppleRssUrl(url);
+  try {
+    return await fetchFeed(rssUrl);
+  } catch (err) {
+    if (err.upstreamStatus === 404 || err.upstreamStatus === 403) {
+      const wrapped = new Error(
+        `This show's RSS feed (${rssUrl}) is unavailable right now (status ${err.upstreamStatus}). ` +
+          'This usually means the podcast has been taken down, the network moved it to a different host, ' +
+          'or it’s now a subscriber-only show (e.g. Wondery+ or an Apple Podcasts subscription) that ' +
+          'doesn’t publish a public feed. Try searching for the show’s name plus "RSS feed" to find an ' +
+          'alternative link, or check the show’s official website.'
+      );
+      wrapped.status = err.upstreamStatus;
+      throw wrapped;
+    }
+    throw err;
+  }
 }
 
 module.exports = { resolvePodcastUrl, fetchFeed, isSpotifyUrl, isApplePodcastsUrl };

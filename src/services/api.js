@@ -24,8 +24,9 @@ export async function resolvePodcast(url) {
 }
 
 /**
- * Summarizes an episode's show notes / description.
- * @param {{ showTitle?: string, episodeTitle?: string, description: string }} episode
+ * Summarizes an episode. Prefers `description`; if it's empty, the backend falls back
+ * to transcribing `audioUrl` (the RSS enclosure), then to a title-only best guess.
+ * @param {{ showTitle?: string, episodeTitle?: string, description?: string, audioUrl?: string }} episode
  * @returns {Promise<{ bulletPoints: string[], shortSummary: string }>}
  */
 export async function summarizeEpisode(episode) {

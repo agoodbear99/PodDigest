@@ -96,6 +96,7 @@ export default function SummaryScreen({ route, navigation }) {
                 showTitle: source.showTitle,
                 episodeTitle: source.episodeTitle,
                 description: source.description,
+                audioUrl: source.audioUrl,
               });
         if (!cancelled) {
           setSummary(result);

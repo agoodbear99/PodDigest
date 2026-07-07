@@ -48,6 +48,7 @@ export default function RSSInputTab() {
         showTitle: feed.showTitle,
         episodeTitle: episode.title,
         description: episode.description,
+        audioUrl: episode.audioUrl,
       },
     });
   };
