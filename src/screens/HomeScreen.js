@@ -48,6 +48,13 @@ export default function HomeScreen() {
               <View style={styles.topActionsRow}>
                 <Pressable
                   style={styles.topActionIconButton}
+                  onPress={() => navigation.navigate('Subscriptions')}
+                  hitSlop={8}
+                >
+                  <Text style={styles.topActionIconText}>{t('home.subscriptionsButton')}</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.topActionIconButton}
                   onPress={() => navigation.navigate('Settings')}
                   hitSlop={8}
                 >

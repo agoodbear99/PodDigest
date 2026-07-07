@@ -8,13 +8,12 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0F1115",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F1115"
-    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.poddigest.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +26,23 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-localization"
-    ]
+      "expo-localization",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#0F1115"
+        }
+      ],
+      "expo-notifications"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d9a1133b-242f-43a5-8c53-ef6cf03d563b"
+      }
+    },
+    "owner": "332026"
   }
 }

@@ -5,6 +5,8 @@ const cors = require('cors');
 
 const podcastRoutes = require('./routes/podcast');
 const summarizeRoutes = require('./routes/summarize');
+const subscriptionRoutes = require('./routes/subscriptions');
+const { startEpisodeWatcher } = require('./services/episodeWatcher');
 
 if (!process.env.ANTHROPIC_API_KEY) {
   console.warn(
@@ -20,6 +22,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api/podcast', podcastRoutes);
 app.use('/api/summarize', summarizeRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Centralized error handler — every route above calls next(err) on failure.
 app.use((err, req, res, next) => {
@@ -30,4 +33,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => {
   console.log(`PodDigest backend listening on http://localhost:${PORT}`);
+  startEpisodeWatcher();
 });

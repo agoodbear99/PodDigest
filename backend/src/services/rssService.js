@@ -101,16 +101,26 @@ async function fetchFeed(rssUrl) {
   const items = toArray(channel.item).slice(0, MAX_EPISODES);
   const showImage = imageUrlOf(channel['itunes:image']) || imageUrlOf(channel.image) || null;
 
-  const episodes = items.map((item, index) => ({
-    id: String(index),
-    title: textOf(item.title) || `Episode ${index + 1}`,
-    description: stripHtml(
-      textOf(item['itunes:summary']) || textOf(item.description) || textOf(item['content:encoded'])
-    ),
-    pubDate: textOf(item.pubDate) || null,
-    audioUrl: item.enclosure ? item.enclosure['@_url'] : null,
-    imageUrl: imageUrlOf(item['itunes:image']) || showImage,
-  }));
+  const episodes = items.map((item, index) => {
+    const audioUrl = item.enclosure ? item.enclosure['@_url'] : null;
+    const pubDate = textOf(item.pubDate) || null;
+    const title = textOf(item.title) || `Episode ${index + 1}`;
+
+    return {
+      id: String(index),
+      // Stable identity for an episode across separate feed fetches, used to
+      // detect "is this a new episode?" — prefers the RSS <guid>, falling
+      // back to the audio URL or a title+pubDate composite when absent.
+      guid: textOf(item.guid) || audioUrl || `${title}::${pubDate}`,
+      title,
+      description: stripHtml(
+        textOf(item['itunes:summary']) || textOf(item.description) || textOf(item['content:encoded'])
+      ),
+      pubDate,
+      audioUrl,
+      imageUrl: imageUrlOf(item['itunes:image']) || showImage,
+    };
+  });
 
   return {
     showTitle: textOf(channel.title) || 'Untitled Show',

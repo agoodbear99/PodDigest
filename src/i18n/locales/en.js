@@ -8,6 +8,7 @@ export default {
     favoritesButton: '♡ Favorites',
     historyButton: '🕓 History',
     settingsButton: '⚙️ Settings',
+    subscriptionsButton: '🔔',
     tabRss: 'RSS Link',
     tabUpload: 'Upload Audio',
   },
@@ -16,6 +17,9 @@ export default {
     placeholder: 'https://podcasts.apple.com/... or RSS feed URL',
     resolveButton: 'Resolve Show',
     chooseEpisodeHint: 'Choose an episode to summarize:',
+    subscribe: '🔔 Notify Me of New Episodes',
+    unsubscribe: '🔕 Subscribed',
+    notificationPermissionDenied: 'Please enable notifications in Settings to subscribe to new episodes.',
   },
   audio: {
     label: 'Upload an MP3 or M4A file',
@@ -67,5 +71,15 @@ export default {
     languageHint: "Choose the app's display language",
     languageZh: '中文',
     languageEn: 'English',
+  },
+  subscriptions: {
+    title: 'Notifications',
+    empty: "You haven't subscribed to any shows yet",
+    emptyHint: 'Resolve a show, then tap "🔔 Notify Me of New Episodes" to add it here',
+    unsubscribeButton: 'Unsubscribe',
+    subscribedAt: 'Subscribed {{date}}',
+    viewEpisodes: 'View Episodes',
+    hideEpisodes: 'Hide',
+    loadingEpisodes: 'Loading episodes…',
   },
 };

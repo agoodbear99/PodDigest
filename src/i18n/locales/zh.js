@@ -8,6 +8,7 @@ export default {
     favoritesButton: '♡ 收藏',
     historyButton: '🕓 歷史紀錄',
     settingsButton: '⚙️ 設定',
+    subscriptionsButton: '🔔',
     tabRss: 'RSS 連結輸入',
     tabUpload: '音檔上傳',
   },
@@ -16,6 +17,9 @@ export default {
     placeholder: 'https://podcasts.apple.com/... 或 RSS feed URL',
     resolveButton: '解析節目',
     chooseEpisodeHint: '選擇一集來產生摘要：',
+    subscribe: '🔔 訂閱新集數通知',
+    unsubscribe: '🔕 已訂閱',
+    notificationPermissionDenied: '請到系統設定開啟通知權限，才能訂閱新集數通知。',
   },
   audio: {
     label: '上傳 MP3 或 M4A 音檔',
@@ -67,5 +71,15 @@ export default {
     languageHint: '選擇 App 的顯示語言',
     languageZh: '中文',
     languageEn: 'English',
+  },
+  subscriptions: {
+    title: '訂閱通知',
+    empty: '尚未訂閱任何節目',
+    emptyHint: '在解析節目後點擊「🔔 訂閱新集數通知」即可加入',
+    unsubscribeButton: '取消訂閱',
+    subscribedAt: '訂閱於 {{date}}',
+    viewEpisodes: '查看集數',
+    hideEpisodes: '收合',
+    loadingEpisodes: '載入集數中…',
   },
 };
