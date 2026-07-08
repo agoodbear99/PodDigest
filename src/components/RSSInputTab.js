@@ -25,6 +25,11 @@ export default function RSSInputTab() {
     isSubscribed(feed.rssUrl).then(setSubscribed);
   }, [feed]);
 
+  const handleClearUrl = () => {
+    impactLight();
+    setUrl('');
+  };
+
   const handleResolve = async () => {
     if (!url.trim()) return;
     setLoading(true);
@@ -82,16 +87,28 @@ export default function RSSInputTab() {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{t('rss.label')}</Text>
-      <TextInput
-        style={styles.input}
-        placeholder={t('rss.placeholder')}
-        placeholderTextColor={colors.textSecondary}
-        value={url}
-        onChangeText={setUrl}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-      />
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={[styles.input, url.length > 0 && styles.inputWithClear]}
+          placeholder={t('rss.placeholder')}
+          placeholderTextColor={colors.textSecondary}
+          value={url}
+          onChangeText={setUrl}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          selectTextOnFocus
+        />
+        {url.length > 0 && (
+          <Pressable
+            onPress={handleClearUrl}
+            hitSlop={12}
+            style={({ pressed }) => [styles.clearButton, pressed && styles.clearButtonPressed]}
+          >
+            <Text style={styles.clearButtonText}>✕</Text>
+          </Pressable>
+        )}
+      </View>
       <PrimaryButton
         title={t('rss.resolveButton')}
         onPress={handleResolve}
@@ -154,6 +171,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
   },
+  inputWrapper: {
+    justifyContent: 'center',
+  },
   input: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -163,6 +183,26 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: colors.textPrimary,
     fontSize: 15,
+  },
+  inputWithClear: {
+    paddingRight: 40,
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearButtonPressed: {
+    backgroundColor: colors.surfaceAlt,
+  },
+  clearButtonText: {
+    color: colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '700',
   },
   error: {
     color: colors.danger,

@@ -40,6 +40,8 @@ export default {
     modeEssay: '短文摘要',
     shareFooter: '— 由 PodDigest 產生',
     shareFailedTitle: '分享失敗',
+    languageZh: '繁體中文',
+    languageEn: 'English',
   },
   history: {
     title: '歷史紀錄',
@@ -67,10 +69,12 @@ export default {
   },
   settings: {
     title: '設定',
-    languageSectionTitle: '顯示語言',
-    languageHint: '選擇 App 的顯示語言',
+    languageSectionTitle: 'App 顯示語言',
+    languageHint: '切換整個 App 的介面語言',
     languageZh: '中文',
     languageEn: 'English',
+    summaryLanguageSectionTitle: '摘要輸出語言',
+    summaryLanguageHint: '選擇 AI 產生節目摘要時使用的語言',
   },
   subscriptions: {
     title: '訂閱通知',

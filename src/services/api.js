@@ -26,7 +26,7 @@ export async function resolvePodcast(url) {
 /**
  * Summarizes an episode. Prefers `description`; if it's empty, the backend falls back
  * to transcribing `audioUrl` (the RSS enclosure), then to a title-only best guess.
- * @param {{ showTitle?: string, episodeTitle?: string, description?: string, audioUrl?: string }} episode
+ * @param {{ showTitle?: string, episodeTitle?: string, description?: string, audioUrl?: string, language?: 'zh-TW'|'en' }} episode
  * @returns {Promise<{ bulletPoints: string[], shortSummary: string }>}
  */
 export async function summarizeEpisode(episode) {
@@ -41,15 +41,19 @@ export async function summarizeEpisode(episode) {
 /**
  * Uploads an audio file (MP3/M4A) for transcription + summarization.
  * @param {{ uri: string, name: string, mimeType: string }} file
+ * @param {'zh-TW'|'en'} [language]
  * @returns {Promise<{ bulletPoints: string[], shortSummary: string }>}
  */
-export async function summarizeAudio(file) {
+export async function summarizeAudio(file, language) {
   const formData = new FormData();
   formData.append('audio', {
     uri: file.uri,
     name: file.name || 'episode.mp3',
     type: file.mimeType || 'audio/mpeg',
   });
+  if (language) {
+    formData.append('language', language);
+  }
 
   const res = await fetch(`${API_BASE_URL}/api/summarize/audio`, {
     method: 'POST',

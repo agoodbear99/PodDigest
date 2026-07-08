@@ -59,7 +59,7 @@ export default function RootNavigator() {
         }}
       >
         <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Summary" component={SummaryScreen} options={{ title: t('summary.title') }} />
+        <Stack.Screen name="Summary" component={SummaryScreen} options={{ headerShown: false }} />
         <Stack.Screen name="History" component={HistoryScreen} options={{ title: t('history.title') }} />
         <Stack.Screen
           name="Favorites"

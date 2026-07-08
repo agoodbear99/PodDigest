@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingOverlay from '../components/LoadingOverlay';
@@ -7,6 +7,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import { summarizeEpisode, summarizeAudio } from '../services/api';
 import { addHistoryItem } from '../services/history';
 import { isFavorite, toggleFavorite } from '../services/favorites';
+import { getSummaryLanguage } from '../services/summaryLanguage';
 import { useLanguage } from '../i18n/LanguageContext';
 import { impactLight, notifySuccess } from '../utils/haptics';
 import { colors } from '../theme/colors';
@@ -61,25 +62,6 @@ export default function SummaryScreen({ route, navigation }) {
     isFavorite(source).then(setIsFav);
   }, [summary, source]);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: summary
-        ? () => (
-            <View style={styles.headerActions}>
-              <Pressable onPress={handleToggleFavorite} hitSlop={12} style={styles.favoriteButton}>
-                <Text style={[styles.favoriteButtonText, isFav && styles.favoriteButtonTextActive]}>
-                  {isFav ? '♥' : '♡'}
-                </Text>
-              </Pressable>
-              <Pressable onPress={handleShare} hitSlop={12} style={styles.shareButton}>
-                <Text style={styles.shareButtonText}>{t('summary.shareButton')}</Text>
-              </Pressable>
-            </View>
-          )
-        : undefined,
-    });
-  }, [navigation, summary, mode, isFav, t]);
-
   useEffect(() => {
     if (cachedSummary) return;
 
@@ -89,14 +71,16 @@ export default function SummaryScreen({ route, navigation }) {
       setLoading(true);
       setError(null);
       try {
+        const language = await getSummaryLanguage();
         const result =
           source.type === 'audio'
-            ? await summarizeAudio(source.file)
+            ? await summarizeAudio(source.file, language)
             : await summarizeEpisode({
                 showTitle: source.showTitle,
                 episodeTitle: source.episodeTitle,
                 description: source.description,
                 audioUrl: source.audioUrl,
+                language,
               });
         if (!cancelled) {
           setSummary(result);
@@ -115,42 +99,82 @@ export default function SummaryScreen({ route, navigation }) {
     };
   }, [source, cachedSummary]);
 
-  if (loading) {
-    return <LoadingOverlay message={t('summary.loadingMessage')} />;
-  }
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
+      <View style={styles.navBar}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={10}
+          style={({ pressed }) => [styles.navBackButton, pressed && styles.navBackButtonPressed]}
+        >
+          <Text style={styles.navBackButtonText}>‹</Text>
+        </Pressable>
+        <Text style={styles.navTitle} numberOfLines={1}>
+          {t('summary.title')}
+        </Text>
+        <View style={styles.navRightSlot}>
+          {summary && (
+            // These two Pressables are deliberately kept as separate, independent
+            // siblings (not wrapped in any shared background/border View) — this
+            // screen renders its own header instead of using native-stack's
+            // headerRight specifically to avoid the OS grouping adjacent header
+            // buttons into one shared highlight/glow "pill" on iOS.
+            <>
+              <Pressable
+                onPress={handleToggleFavorite}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.favoriteButton,
+                  isFav && styles.favoriteButtonActive,
+                  pressed && styles.favoriteButtonPressed,
+                ]}
+              >
+                <Text style={[styles.favoriteButtonText, isFav && styles.favoriteButtonTextActive]}>
+                  {isFav ? '♥' : '♡'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleShare}
+                hitSlop={6}
+                style={({ pressed }) => [styles.shareButton, pressed && styles.shareButtonPressed]}
+              >
+                <Text style={styles.shareButtonText}>{t('summary.shareButton')}</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      </View>
 
-  if (error) {
-    return (
-      <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
+      {loading ? (
+        <LoadingOverlay message={t('summary.loadingMessage')} />
+      ) : error ? (
         <View style={styles.centerContent}>
           <Text style={styles.errorTitle}>{t('summary.errorTitle')}</Text>
           <Text style={styles.errorText}>{error}</Text>
           <PrimaryButton title={t('summary.backButton')} onPress={() => navigation.goBack()} />
         </View>
-      </SafeAreaView>
-    );
-  }
+      ) : (
+        <>
+          <View style={styles.header}>
+            {source.type === 'episode' && (
+              <>
+                <Text style={styles.showTitle}>{source.showTitle}</Text>
+                <Text style={styles.episodeTitle}>{source.episodeTitle}</Text>
+              </>
+            )}
+            {source.type === 'audio' && <Text style={styles.episodeTitle}>{source.file.name}</Text>}
+          </View>
 
-  return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
-      <View style={styles.header}>
-        {source.type === 'episode' && (
-          <>
-            <Text style={styles.showTitle}>{source.showTitle}</Text>
-            <Text style={styles.episodeTitle}>{source.episodeTitle}</Text>
-          </>
-        )}
-        {source.type === 'audio' && <Text style={styles.episodeTitle}>{source.file.name}</Text>}
-      </View>
-
-      <View style={styles.body}>
-        <SummaryToggle
-          mode={mode}
-          onChangeMode={setMode}
-          bulletPoints={summary.bulletPoints}
-          shortSummary={summary.shortSummary}
-        />
-      </View>
+          <View style={styles.body}>
+            <SummaryToggle
+              mode={mode}
+              onChangeMode={setMode}
+              bulletPoints={summary.bulletPoints}
+              shortSummary={summary.shortSummary}
+            />
+          </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -160,29 +184,80 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  headerActions: {
+  navBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: 8,
+    height: 52,
+  },
+  navBackButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+  },
+  navBackButtonPressed: {
+    backgroundColor: colors.surfaceAlt,
+  },
+  navBackButtonText: {
+    color: colors.textPrimary,
+    fontSize: 28,
+    fontWeight: '400',
+    marginTop: -2,
+  },
+  navTitle: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  navRightSlot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 16,
+    minWidth: 40,
   },
   favoriteButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  favoriteButtonActive: {
+    backgroundColor: 'rgba(248, 113, 113, 0.15)',
+    borderColor: colors.danger,
+  },
+  favoriteButtonPressed: {
+    opacity: 0.6,
   },
   favoriteButtonText: {
     color: colors.textSecondary,
-    fontSize: 20,
+    fontSize: 17,
+    lineHeight: 20,
   },
   favoriteButtonTextActive: {
     color: colors.danger,
   },
   shareButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginRight: 4,
+    backgroundColor: colors.accent,
+    borderRadius: 17,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+  },
+  shareButtonPressed: {
+    opacity: 0.7,
   },
   shareButtonText: {
-    color: colors.accent,
-    fontSize: 15,
+    color: colors.textPrimary,
+    fontSize: 14,
     fontWeight: '600',
   },
   header: {

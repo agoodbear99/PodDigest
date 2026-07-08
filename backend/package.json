@@ -6,7 +6,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "nodemon"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
@@ -16,5 +16,8 @@
     "express": "^4.21.2",
     "fast-xml-parser": "^4.5.0",
     "multer": "^2.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }
