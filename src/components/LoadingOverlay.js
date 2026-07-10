@@ -8,7 +8,17 @@ export default function LoadingOverlay({ message = '產生摘要中…' }) {
   const spin = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const pulseLoop = Animated.loop(
+    // `Animated.loop()` + `useNativeDriver: true` can silently stop after one
+    // iteration on react-native-web (the CSS-driven native-driver emulation
+    // doesn't always re-trigger the loop's internal restart). A manual
+    // recursive restart is more robust across platforms — each cycle
+    // explicitly resets the value and kicks off the next one itself, so it
+    // keeps going for as long as the component stays mounted (i.e. until the
+    // summary is ready), and only stops because we tell it to on unmount.
+    let stopped = false;
+
+    const runPulse = () => {
+      pulse.setValue(0);
       Animated.sequence([
         Animated.timing(pulse, {
           toValue: 1,
@@ -22,21 +32,30 @@ export default function LoadingOverlay({ message = '產生摘要中…' }) {
           easing: Easing.in(Easing.ease),
           useNativeDriver: true,
         }),
-      ])
-    );
-    const spinLoop = Animated.loop(
+      ]).start(({ finished }) => {
+        if (finished && !stopped) runPulse();
+      });
+    };
+
+    const runSpin = () => {
+      spin.setValue(0);
       Animated.timing(spin, {
         toValue: 1,
         duration: 2200,
         easing: Easing.linear,
         useNativeDriver: true,
-      })
-    );
-    pulseLoop.start();
-    spinLoop.start();
+      }).start(({ finished }) => {
+        if (finished && !stopped) runSpin();
+      });
+    };
+
+    runPulse();
+    runSpin();
+
     return () => {
-      pulseLoop.stop();
-      spinLoop.stop();
+      stopped = true;
+      pulse.stopAnimation();
+      spin.stopAnimation();
     };
   }, [pulse, spin]);
 

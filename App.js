@@ -4,6 +4,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootNavigator from './src/navigation/RootNavigator';
 import { LanguageProvider } from './src/i18n/LanguageContext';
+import { PremiumProvider } from './src/context/PremiumContext';
+import { configurePurchases } from './src/services/purchaseService';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -11,6 +13,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 // language has loaded, so mounting here is itself the "app is ready" signal.
 function AppContent() {
   useEffect(() => {
+    configurePurchases();
     SplashScreen.hideAsync().catch(() => {});
   }, []);
 
@@ -26,7 +29,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <LanguageProvider>
-        <AppContent />
+        <PremiumProvider>
+          <AppContent />
+        </PremiumProvider>
       </LanguageProvider>
     </SafeAreaProvider>
   );

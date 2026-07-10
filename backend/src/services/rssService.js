@@ -11,6 +11,55 @@ const parser = new XMLParser({
 
 const MAX_EPISODES = 20;
 
+const FETCH_TIMEOUT_MS = 10 * 1000; // 10s — avoid hanging forever on a slow/dead host
+const FEED_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const APPLE_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+/** Minimal in-memory TTL cache — entries just expire on read, no background sweep needed. */
+function createTtlCache(ttlMs) {
+  const store = new Map();
+  return {
+    get(key) {
+      const entry = store.get(key);
+      if (!entry) return undefined;
+      if (Date.now() > entry.expiresAt) {
+        store.delete(key);
+        return undefined;
+      }
+      return entry.value;
+    },
+    set(key, value) {
+      store.set(key, { value, expiresAt: Date.now() + ttlMs });
+    },
+  };
+}
+
+const feedCache = createTtlCache(FEED_CACHE_TTL_MS);
+const appleLookupCache = createTtlCache(APPLE_LOOKUP_CACHE_TTL_MS);
+
+/**
+ * fetch() with a hard timeout. Network failures and aborts are both normalized
+ * into a thrown Error with a `.status` the route layer can respond with.
+ */
+async function fetchWithTimeout(url, timeoutMs = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      const timeoutErr = new Error(`Request timed out after ${timeoutMs / 1000}s: ${url}`);
+      timeoutErr.status = 504;
+      throw timeoutErr;
+    }
+    const networkErr = new Error(`Network error while fetching ${url}: ${err.message}`);
+    networkErr.status = 502;
+    throw networkErr;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function hostnameOf(url) {
   try {
     return new URL(url).hostname.toLowerCase();
@@ -50,10 +99,13 @@ async function resolveAppleRssUrl(appleUrl) {
     throw err;
   }
 
+  const cached = appleLookupCache.get(appleId);
+  if (cached) return cached;
+
   // `country=US` pins the lookup to the US catalog so results are consistent
   // regardless of the server's own IP-based locale.
   const lookupUrl = `https://itunes.apple.com/lookup?id=${appleId}&entity=podcast&country=US`;
-  const res = await fetch(lookupUrl);
+  const res = await fetchWithTimeout(lookupUrl);
   if (!res.ok) {
     const err = new Error(`Apple lookup failed with status ${res.status}.`);
     err.status = 502;
@@ -68,6 +120,7 @@ async function resolveAppleRssUrl(appleUrl) {
     throw err;
   }
 
+  appleLookupCache.set(appleId, result.feedUrl);
   return result.feedUrl;
 }
 
@@ -102,7 +155,10 @@ function imageUrlOf(node) {
  * Fetches and parses an RSS feed, returning show metadata and the most recent episodes.
  */
 async function fetchFeed(rssUrl) {
-  const res = await fetch(rssUrl);
+  const cached = feedCache.get(rssUrl);
+  if (cached) return cached;
+
+  const res = await fetchWithTimeout(rssUrl);
   if (!res.ok) {
     const err = new Error(`Failed to fetch RSS feed (status ${res.status}).`);
     err.status = 502;
@@ -146,12 +202,14 @@ async function fetchFeed(rssUrl) {
     };
   });
 
-  return {
+  const feedData = {
     showTitle: textOf(channel.title) || 'Untitled Show',
     showImage,
     rssUrl,
     episodes,
   };
+  feedCache.set(rssUrl, feedData);
+  return feedData;
 }
 
 /**

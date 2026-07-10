@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 
 const podcastRoutes = require('./routes/podcast');
 const summarizeRoutes = require('./routes/summarize');
@@ -15,7 +16,11 @@ if (!process.env.ANTHROPIC_API_KEY) {
 }
 
 const app = express();
+// Needed for req.ip to reflect the real client address (not the proxy's) when
+// deployed behind a reverse proxy — usageService's free-tier limit is keyed by IP.
+app.set('trust proxy', true);
 app.use(cors());
+app.use(compression());
 app.use(express.json());
 
 app.get('/health', (req, res) => res.json({ ok: true }));

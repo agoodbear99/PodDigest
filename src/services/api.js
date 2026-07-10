@@ -4,7 +4,10 @@ async function handleResponse(res) {
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const message = (data && data.error) || `Request failed (${res.status}).`;
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = res.status;
+    err.data = data;
+    throw err;
   }
   return data;
 }
@@ -60,5 +63,14 @@ export async function summarizeAudio(file, language) {
     headers: { 'Content-Type': 'multipart/form-data' },
     body: formData,
   });
+  return handleResponse(res);
+}
+
+/**
+ * Today's free-summary usage for the caller's IP (does not consume a slot).
+ * @returns {Promise<{ used: number, remaining: number, limit: number }>}
+ */
+export async function getUsageStatus() {
+  const res = await fetch(`${API_BASE_URL}/api/summarize/usage`);
   return handleResponse(res);
 }

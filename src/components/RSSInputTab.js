@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors } from '../theme/colors';
@@ -8,10 +8,14 @@ import { selection, notifySuccess, impactLight } from '../utils/haptics';
 import { ensureNotificationPermission, getPushToken } from '../services/notifications';
 import { isSubscribed, subscribeToFeed, unsubscribeFromFeed } from '../services/subscriptions';
 import PrimaryButton from './PrimaryButton';
+import FeedLoadingAnimation from './FeedLoadingAnimation';
 
-export default function RSSInputTab() {
+const PARSE_TIME_DISPLAY_MS = 3000;
+
+export default function RSSInputTab({ usage, isPremium = false }) {
   const navigation = useNavigation();
   const { t } = useLanguage();
+  const usageExhausted = !isPremium && !!usage && usage.remaining <= 0;
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -19,11 +23,15 @@ export default function RSSInputTab() {
   const [subscribed, setSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
   const [subscribeError, setSubscribeError] = useState(null);
+  const [parseTimeText, setParseTimeText] = useState(null);
+  const parseTimeTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!feed) return;
     isSubscribed(feed.rssUrl).then(setSubscribed);
   }, [feed]);
+
+  useEffect(() => () => clearTimeout(parseTimeTimeoutRef.current), []);
 
   const handleClearUrl = () => {
     impactLight();
@@ -35,9 +43,15 @@ export default function RSSInputTab() {
     setLoading(true);
     setError(null);
     setFeed(null);
+    setParseTimeText(null);
+    clearTimeout(parseTimeTimeoutRef.current);
+    const startedAt = Date.now();
     try {
       const result = await resolvePodcast(url.trim());
       setFeed(result);
+      const elapsedSeconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+      setParseTimeText(t('rss.parseTimeMessage', { seconds: elapsedSeconds }));
+      parseTimeTimeoutRef.current = setTimeout(() => setParseTimeText(null), PARSE_TIME_DISPLAY_MS);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -113,13 +127,17 @@ export default function RSSInputTab() {
         title={t('rss.resolveButton')}
         onPress={handleResolve}
         loading={loading}
-        disabled={!url.trim()}
+        disabled={!url.trim() || usageExhausted}
       />
+      {usageExhausted && <Text style={styles.usageExhaustedHint}>{t('rss.usageExhaustedHint')}</Text>}
 
-      {error && <Text style={styles.error}>{error}</Text>}
+      {loading && <FeedLoadingAnimation />}
 
-      {feed && (
+      {!loading && error && <Text style={styles.error}>{error}</Text>}
+
+      {!loading && feed && (
         <View style={styles.feedSection}>
+          {parseTimeText && <Text style={styles.parseTimeText}>{parseTimeText}</Text>}
           <View style={styles.feedHeaderRow}>
             <Text style={styles.showTitle}>{feed.showTitle}</Text>
             <Pressable
@@ -207,6 +225,16 @@ const styles = StyleSheet.create({
   error: {
     color: colors.danger,
     fontSize: 14,
+  },
+  usageExhaustedHint: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  parseTimeText: {
+    color: colors.success,
+    fontSize: 12,
+    fontWeight: '600',
   },
   feedSection: {
     marginTop: 8,

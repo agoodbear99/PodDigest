@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingOverlay from '../components/LoadingOverlay';
@@ -26,15 +26,20 @@ function buildShareMessage(source, summary, mode, t) {
   return `${heading}\n\n${body}\n\n${t('summary.shareFooter')}`;
 }
 
+const PARSE_TIME_DISPLAY_MS = 3000;
+
 export default function SummaryScreen({ route, navigation }) {
   const { source, cachedSummary } = route.params;
   const { t } = useLanguage();
 
   const [loading, setLoading] = useState(!cachedSummary);
   const [error, setError] = useState(null);
+  const [usageLimitInfo, setUsageLimitInfo] = useState(null);
   const [summary, setSummary] = useState(cachedSummary || null);
   const [mode, setMode] = useState('bullets');
   const [isFav, setIsFav] = useState(false);
+  const [parseTimeText, setParseTimeText] = useState(null);
+  const parseTimeTimeoutRef = useRef(null);
 
   const handleShare = async () => {
     try {
@@ -62,14 +67,18 @@ export default function SummaryScreen({ route, navigation }) {
     isFavorite(source).then(setIsFav);
   }, [summary, source]);
 
+  useEffect(() => () => clearTimeout(parseTimeTimeoutRef.current), []);
+
   useEffect(() => {
     if (cachedSummary) return;
 
     let cancelled = false;
+    const startedAt = Date.now();
 
     async function run() {
       setLoading(true);
       setError(null);
+      setUsageLimitInfo(null);
       try {
         const language = await getSummaryLanguage();
         const result =
@@ -85,9 +94,19 @@ export default function SummaryScreen({ route, navigation }) {
         if (!cancelled) {
           setSummary(result);
           addHistoryItem({ source, summary: result }).catch(() => {});
+          const elapsedSeconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+          setParseTimeText(t('summary.parseTimeMessage', { seconds: elapsedSeconds }));
+          clearTimeout(parseTimeTimeoutRef.current);
+          parseTimeTimeoutRef.current = setTimeout(() => setParseTimeText(null), PARSE_TIME_DISPLAY_MS);
         }
       } catch (err) {
-        if (!cancelled) setError(err.message);
+        if (!cancelled) {
+          if (err.status === 429) {
+            setUsageLimitInfo(err.data || { used: 0, limit: 0 });
+          } else {
+            setError(err.message);
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -147,6 +166,14 @@ export default function SummaryScreen({ route, navigation }) {
 
       {loading ? (
         <LoadingOverlay message={t('summary.loadingMessage')} />
+      ) : usageLimitInfo ? (
+        <View style={styles.centerContent}>
+          <Text style={styles.usageLimitTitle}>
+            {t('summary.usageLimitTitle', { used: usageLimitInfo.used, limit: usageLimitInfo.limit })}
+          </Text>
+          <Text style={styles.errorText}>{t('summary.usageLimitMessage')}</Text>
+          <PrimaryButton title={t('summary.backButton')} onPress={() => navigation.goBack()} />
+        </View>
       ) : error ? (
         <View style={styles.centerContent}>
           <Text style={styles.errorTitle}>{t('summary.errorTitle')}</Text>
@@ -166,6 +193,7 @@ export default function SummaryScreen({ route, navigation }) {
           </View>
 
           <View style={styles.body}>
+            {parseTimeText && <Text style={styles.parseTimeText}>{parseTimeText}</Text>}
             <SummaryToggle
               mode={mode}
               onChangeMode={setMode}
@@ -280,6 +308,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
   },
+  parseTimeText: {
+    color: colors.success,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
   centerContent: {
     flex: 1,
     alignItems: 'center',
@@ -291,6 +325,12 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 18,
     fontWeight: '700',
+  },
+  usageLimitTitle: {
+    color: colors.accent,
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   errorText: {
     color: colors.textSecondary,

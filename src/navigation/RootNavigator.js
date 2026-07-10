@@ -8,6 +8,7 @@ import HistoryScreen from '../screens/HistoryScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionsScreen from '../screens/SubscriptionsScreen';
+import PaywallScreen from '../screens/PaywallScreen';
 import { useLanguage } from '../i18n/LanguageContext';
 import { colors } from '../theme/colors';
 
@@ -76,6 +77,7 @@ export default function RootNavigator() {
           component={SubscriptionsScreen}
           options={{ title: t('subscriptions.title') }}
         />
+        <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: t('paywall.title') }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
